@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31515.178
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pocAes256", "pocAes256\pocAes256.csproj", "{884E497E-72A1-4E88-8CA2-D667B1B17F58}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{884E497E-72A1-4E88-8CA2-D667B1B17F58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{884E497E-72A1-4E88-8CA2-D667B1B17F58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{884E497E-72A1-4E88-8CA2-D667B1B17F58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{884E497E-72A1-4E88-8CA2-D667B1B17F58}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {717FA705-5143-4AA2-B7F8-C43E3E177337}
+	EndGlobalSection
+EndGlobal
