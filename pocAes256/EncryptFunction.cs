@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +16,9 @@ namespace pocAes256
     public static class EncryptFunction
     {
         private const string KEY = "v6K88GdfVAjgMEwV6OxRGKCA6E0sVE4T";
+        
+        private const string APLHA = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        private const int IV_SIZE = 16;
 
         [FunctionName("Encryption")]
         public static async Task<IActionResult> Run(
@@ -27,16 +31,33 @@ namespace pocAes256
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             string plainText = queryValue ?? Convert.ToString(data?.value);
-            
-            string responseMessage = EncryptRequest(plainText, log);
-            return new OkObjectResult(new { result = responseMessage });
+            string iv = GenerateIV();
+
+            string responseMessage = EncryptRequest(plainText, iv, log);
+            return new OkObjectResult(new { result = responseMessage, iv });
         }
 
-        private static string EncryptRequest(string dataToEncrypt, ILogger log)
+        private static string EncryptRequest(string dataToEncrypt, string iv, ILogger log)
         {
             try
             {
-                return AesEncrypt(dataToEncrypt, Encoding.UTF8.GetBytes(KEY));
+                byte[] cryptkey = Encoding.UTF8.GetBytes(KEY);
+                byte[] initVector = Encoding.UTF8.GetBytes(iv);
+
+                using (var rijndaelManaged =
+                       new RijndaelManaged { Key = cryptkey, IV = initVector, Mode = CipherMode.CBC, Padding = PaddingMode.PKCS7 })
+                using (var memoryStream = new MemoryStream())
+                using (var cryptoStream =
+                       new CryptoStream(memoryStream,
+                           rijndaelManaged.CreateEncryptor(cryptkey, initVector),
+                           CryptoStreamMode.Write))
+                {
+                    using (var ws = new StreamWriter(cryptoStream))
+                    {
+                        ws.Write(dataToEncrypt);
+                    }
+                    return Convert.ToBase64String(memoryStream.ToArray());
+                }
             }
             catch (CryptographicException e)
             {
@@ -45,41 +66,12 @@ namespace pocAes256
             }
         }
 
-        private static string AesEncrypt(string data, byte[] key)
+        private static string GenerateIV()
         {
-            return Convert.ToBase64String(AesEncrypt(Encoding.UTF8.GetBytes(data), key));
-        }
-
-        private static byte[] AesEncrypt(byte[] data, byte[] key)
-        {
-            if (data == null || data.Length <= 0)
-            {
-                throw new ArgumentNullException($"{nameof(data)} cannot be empty");
-            }
-
-            using (var aes = new AesCryptoServiceProvider
-            {
-                Key = key,
-                Mode = CipherMode.CBC,
-                Padding = PaddingMode.PKCS7
-            })
-            {
-                aes.GenerateIV();
-                var iv = aes.IV;
-                using (var encrypter = aes.CreateEncryptor(aes.Key, iv))
-                using (var cipherStream = new MemoryStream())
-                {
-                    using (var tCryptoStream = new CryptoStream(cipherStream, encrypter, CryptoStreamMode.Write))
-                    using (var tBinaryWriter = new BinaryWriter(tCryptoStream))
-                    {
-                        cipherStream.Write(iv);
-                        tBinaryWriter.Write(data);
-                        tCryptoStream.FlushFinalBlock();
-                    }
-                    var cipherBytes = cipherStream.ToArray();
-                    return cipherBytes;
-                }
-            }
+            Random random = new Random();
+            string iv = new string(Enumerable.Repeat(APLHA, IV_SIZE)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
+            return iv;
         }
     }
 }

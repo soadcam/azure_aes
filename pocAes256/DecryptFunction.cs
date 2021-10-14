@@ -15,6 +15,8 @@ namespace pocAes256
     public static class DecryptFunction
     {
         private const string KEY = "v6K88GdfVAjgMEwV6OxRGKCA6E0sVE4T";
+        
+        private const int IV_SIZE = 16;
 
         [FunctionName("Decryption")]
         public static async Task<IActionResult> Run(
@@ -29,59 +31,39 @@ namespace pocAes256
             string plainText = queryValue ?? Convert.ToString(data?.value);
 
             string responseMessage = DecryptRequest(plainText, log);
-            return new OkObjectResult(new { result = responseMessage });
+            return new OkObjectResult(new { encrypted = responseMessage });
         }
 
         private static string DecryptRequest(string dataToDecrypt, ILogger log)
         {
             try
             {
-                return AesDecrypt(dataToDecrypt, Encoding.UTF8.GetBytes(KEY));
+                byte[] encryptedData = Convert.FromBase64String(dataToDecrypt);
+                var initVector = new byte[IV_SIZE];
+                Array.Copy(encryptedData, 0, initVector, 0, initVector.Length);
+                byte[] cryptkey = Encoding.UTF8.GetBytes(KEY);
+
+                // diff
+                int lengthData = encryptedData.Length - initVector.Length;
+                byte[] inputData = new byte[lengthData];
+                Array.Copy(encryptedData, initVector.Length, inputData, 0, inputData.Length);
+
+                using (var rijndaelManaged =
+                       new RijndaelManaged { Mode = CipherMode.CBC, Padding = PaddingMode.PKCS7})
+                using (var memoryStream =
+                       new MemoryStream(inputData))
+                using (var cryptoStream =
+                       new CryptoStream(memoryStream,
+                           rijndaelManaged.CreateDecryptor(cryptkey, initVector),
+                           CryptoStreamMode.Read))
+                {
+                    return new StreamReader(cryptoStream).ReadToEnd();
+                }
             }
             catch (CryptographicException e)
             {
                 log.LogError("A Cryptographic error occurred: {0}", e.ToString());
                 return null;
-            }
-        }
-
-        private static string AesDecrypt(string data, byte[] key)
-        {
-            return Encoding.UTF8.GetString(AesDecrypt(Convert.FromBase64String(data), key));
-        }
-
-        private static byte[] AesDecrypt(byte[] data, byte[] key)
-        {
-            if (data == null || data.Length <= 0)
-            {
-                throw new ArgumentNullException($"{nameof(data)} cannot be empty");
-            }
-
-            using (var aes = new AesCryptoServiceProvider
-            {
-                Key = key,
-                Mode = CipherMode.CBC,
-                Padding = PaddingMode.PKCS7
-            })
-            {
-                var iv = new byte[16];
-                Array.Copy(data, 0, iv, 0, iv.Length);
-                using (var ms = new MemoryStream())
-                {
-                    using (var cs = new CryptoStream(ms, aes.CreateDecryptor(aes.Key, iv), CryptoStreamMode.Write))
-                    using (var binaryWriter = new BinaryWriter(cs))
-                    {
-                        binaryWriter.Write(
-                            data,
-                            iv.Length,
-                            data.Length - iv.Length
-                        );
-                    }
-
-                    var dataBytes = ms.ToArray();
-
-                    return dataBytes;
-                }
             }
         }
     }
