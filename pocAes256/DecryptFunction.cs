@@ -31,7 +31,7 @@ namespace pocAes256
             string plainText = queryValue ?? Convert.ToString(data?.value);
 
             string responseMessage = DecryptRequest(plainText, log);
-            return new OkObjectResult(new { result = responseMessage });
+            return new OkObjectResult(new { result = JsonConvert.DeserializeObject(responseMessage) });
         }
 
         private static string DecryptRequest(string dataToDecrypt, ILogger log)
